@@ -1,0 +1,1364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>STORM VECTOR — Live Severe Weather</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --black: #0a0a0c;
+      --dark: #111116;
+      --card: #16161e;
+      --card2: #1c1c26;
+      --border: rgba(255,255,255,0.07);
+      --red: #e8202a;
+      --red2: #c01820;
+      --cyan: #00d4f5;
+      --yellow: #f5c400;
+      --orange: #ff5e1a;
+      --white: #f0f0f5;
+      --muted: rgba(240,240,245,0.45);
+      --font-display: 'Bebas Neue', Arial, sans-serif;
+      --font-heading: 'Barlow Condensed', Arial, sans-serif;
+      --font-body: 'Barlow', Arial, sans-serif;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--black);
+      color: var(--white);
+      font-family: var(--font-body);
+      line-height: 1.5;
+      overflow-x: hidden;
+    }
+
+    /* ── SCROLLBAR ── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--dark); }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+
+    /* ── BREAKING TICKER ── */
+    #ticker {
+      background: linear-gradient(90deg, var(--red2), var(--red));
+      padding: 9px 0;
+      overflow: hidden;
+      position: relative;
+      z-index: 100;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    #ticker-inner {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      white-space: nowrap;
+      animation: ticker-scroll 40s linear infinite;
+    }
+    #ticker-inner:hover { animation-play-state: paused; }
+    .ticker-label {
+      font-family: var(--font-display);
+      font-size: 12px;
+      letter-spacing: 3px;
+      color: rgba(255,255,255,0.7);
+      background: rgba(0,0,0,0.3);
+      padding: 0 14px;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      margin-right: 20px;
+      flex-shrink: 0;
+    }
+    .ticker-dot { width: 7px; height: 7px; border-radius: 50%; background: #fff; display: inline-block; margin-right: 10px; animation: blink 1s ease-in-out infinite; }
+    .ticker-item { font-family: var(--font-heading); font-size: 13px; font-weight: 600; letter-spacing: 0.5px; padding: 0 28px; }
+    .ticker-divider { color: rgba(255,255,255,0.4); margin: 0 4px; }
+    @keyframes ticker-scroll { 0%{transform:translateX(0);} 100%{transform:translateX(-50%);} }
+    @keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+
+    /* ── NAV ── */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 200;
+      background: rgba(10,10,12,0.95);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      height: 60px;
+      gap: 32px;
+    }
+    .nav-logo {
+      font-family: var(--font-display);
+      font-size: 22px;
+      letter-spacing: 3px;
+      color: var(--white);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .nav-logo span { color: var(--cyan); }
+    .nav-logo-icon {
+      width: 28px; height: 28px;
+      background: var(--red);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+    }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex: 1;
+    }
+    .nav-link {
+      font-family: var(--font-heading);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      color: var(--muted);
+      text-decoration: none;
+      padding: 6px 12px;
+      border-radius: 5px;
+      transition: color 0.2s, background 0.2s;
+      text-transform: uppercase;
+    }
+    .nav-link:hover, .nav-link.active { color: var(--white); background: rgba(255,255,255,0.07); }
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: auto;
+    }
+    .btn {
+      font-family: var(--font-heading);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      padding: 7px 16px;
+      border-radius: 5px;
+      cursor: pointer;
+      border: none;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+    .btn-red { background: var(--red); color: #fff; }
+    .btn-red:hover { background: #ff2834; transform: translateY(-1px); }
+    .btn-outline { background: transparent; color: var(--white); border: 1px solid var(--border); }
+    .btn-outline:hover { background: rgba(255,255,255,0.07); }
+    .btn-cyan { background: var(--cyan); color: #000; }
+    .btn-cyan:hover { background: #33ddf7; }
+    .live-pill {
+      background: var(--red);
+      color: #fff;
+      font-family: var(--font-display);
+      font-size: 11px;
+      letter-spacing: 2px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      animation: live-pulse 2s ease-in-out infinite;
+    }
+    @keyframes live-pulse { 0%,100%{box-shadow:0 0 0 0 rgba(232,32,42,0.5);} 50%{box-shadow:0 0 0 6px rgba(232,32,42,0);} }
+    .live-dot { width: 6px; height: 6px; border-radius: 50%; background: #fff; animation: blink 1s ease-in-out infinite; }
+
+    /* ── HERO ── */
+    #hero {
+      min-height: calc(100vh - 100px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 60px 24px 80px;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero-bg {
+      position: absolute;
+      inset: 0;
+      background: 
+        radial-gradient(ellipse 80% 60% at 50% 40%, rgba(232,32,42,0.12) 0%, transparent 70%),
+        radial-gradient(ellipse 60% 40% at 20% 80%, rgba(0,212,245,0.08) 0%, transparent 60%);
+      pointer-events: none;
+    }
+    .hero-grid {
+      position: absolute;
+      inset: 0;
+      background-image: 
+        linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+      background-size: 60px 60px;
+      mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 30%, transparent 100%);
+      pointer-events: none;
+    }
+    .hero-eyebrow {
+      font-family: var(--font-display);
+      font-size: 11px;
+      letter-spacing: 4px;
+      color: var(--cyan);
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .hero-eyebrow::before, .hero-eyebrow::after {
+      content: '';
+      width: 40px;
+      height: 1px;
+      background: rgba(0,212,245,0.4);
+    }
+    h1 {
+      font-family: var(--font-display);
+      font-size: clamp(52px, 10vw, 110px);
+      letter-spacing: 4px;
+      line-height: 0.9;
+      color: var(--white);
+      margin-bottom: 8px;
+    }
+    h1 .accent { color: var(--red); }
+    h1 .accent2 { color: var(--cyan); }
+    .hero-sub {
+      font-family: var(--font-heading);
+      font-size: clamp(14px, 2vw, 18px);
+      font-weight: 400;
+      color: var(--muted);
+      max-width: 560px;
+      margin: 18px auto 36px;
+      line-height: 1.6;
+    }
+    .hero-ctas {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 60px;
+    }
+    .hero-stats {
+      display: flex;
+      gap: 40px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .hero-stat { text-align: center; }
+    .hero-stat-num {
+      font-family: var(--font-display);
+      font-size: 36px;
+      letter-spacing: 2px;
+      color: var(--white);
+    }
+    .hero-stat-num.red { color: var(--red); }
+    .hero-stat-num.cyan { color: var(--cyan); }
+    .hero-stat-label { font-family: var(--font-heading); font-size: 11px; letter-spacing: 2px; color: var(--muted); margin-top: 2px; }
+
+    /* ── SECTION LAYOUT ── */
+    section { padding: 64px 24px; max-width: 1200px; margin: 0 auto; }
+    .section-header {
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    .section-eyebrow {
+      font-family: var(--font-display);
+      font-size: 10px;
+      letter-spacing: 4px;
+      color: var(--muted);
+    }
+    .section-title {
+      font-family: var(--font-display);
+      font-size: 32px;
+      letter-spacing: 2px;
+      color: var(--white);
+    }
+    .section-title .accent { color: var(--red); }
+
+    /* ── SITUATION REPORT ── */
+    #situation {
+      background: var(--card);
+      border-top: 3px solid var(--red);
+      border-bottom: 1px solid var(--border);
+      padding: 0;
+      max-width: 100%;
+    }
+    .situation-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px 24px;
+      display: flex;
+      gap: 20px;
+      align-items: stretch;
+      flex-wrap: wrap;
+    }
+    .sit-badge {
+      font-family: var(--font-display);
+      font-size: 10px;
+      letter-spacing: 3px;
+      color: var(--red);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+    .sit-main {
+      flex: 1;
+      min-width: 200px;
+    }
+    .sit-headline {
+      font-family: var(--font-heading);
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--white);
+      line-height: 1.3;
+    }
+    .sit-cards {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .sit-card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 120px;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .sit-card:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.15); }
+    .sit-card.red { border-color: rgba(232,32,42,0.4); background: rgba(232,32,42,0.1); }
+    .sit-card-label { font-family: var(--font-display); font-size: 9px; letter-spacing: 2px; color: var(--muted); }
+    .sit-card-val { font-family: var(--font-display); font-size: 22px; letter-spacing: 1px; color: var(--white); }
+    .sit-card-val.red { color: var(--red); }
+    .sit-card-val.yellow { color: var(--yellow); }
+    .sit-card-sub { font-family: var(--font-heading); font-size: 10px; color: var(--muted); }
+
+    /* ── RADAR SECTION ── */
+    #radar-section { padding: 0; max-width: 100%; }
+    .radar-wrapper {
+      position: relative;
+      width: 100%;
+      height: 85vh;
+      background: #0d0d10;
+      overflow: hidden;
+    }
+    .radar-wrapper iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+    .radar-overlay-bar {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      background: linear-gradient(180deg, rgba(0,0,0,0.7) 0%, transparent 100%);
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      pointer-events: none;
+    }
+    .radar-title {
+      font-family: var(--font-display);
+      font-size: 16px;
+      letter-spacing: 3px;
+      color: var(--white);
+    }
+    .radar-sub {
+      font-family: var(--font-heading);
+      font-size: 11px;
+      letter-spacing: 1px;
+      color: var(--muted);
+    }
+
+    /* ── SHARE LOCATION PANEL ── */
+    #share-location-panel {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(10,10,12,0.92);
+      border: 1px solid rgba(0,212,245,0.3);
+      border-radius: 12px;
+      padding: 16px 18px;
+      width: 280px;
+      font-family: var(--font-heading);
+      pointer-events: all;
+      z-index: 10;
+      backdrop-filter: blur(12px);
+    }
+    #share-location-panel h3 {
+      font-family: var(--font-display);
+      font-size: 14px;
+      letter-spacing: 2px;
+      color: var(--cyan);
+      margin-bottom: 4px;
+    }
+    #share-location-panel p {
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 12px;
+      letter-spacing: 0.3px;
+    }
+    .share-input {
+      width: 100%;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 6px;
+      color: var(--white);
+      font-family: var(--font-heading);
+      font-size: 13px;
+      padding: 8px 10px;
+      margin-bottom: 8px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .share-input:focus { border-color: rgba(0,212,245,0.5); }
+    .share-input::placeholder { color: rgba(255,255,255,0.3); }
+    .share-row { display: flex; gap: 6px; margin-bottom: 8px; align-items: center; }
+    .share-checkbox { accent-color: var(--red); width: 14px; height: 14px; cursor: pointer; }
+    .share-checkbox-label { font-size: 11px; color: var(--muted); cursor: pointer; }
+    #share-status {
+      font-size: 11px;
+      letter-spacing: 0.5px;
+      margin-top: 6px;
+      min-height: 16px;
+      color: var(--cyan);
+    }
+    #share-status.error { color: #ff6644; }
+    #share-status.success { color: #44ff99; }
+    .sharing-active {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(0,212,245,0.1);
+      border: 1px solid rgba(0,212,245,0.3);
+      border-radius: 8px;
+      padding: 8px 12px;
+      margin-top: 8px;
+    }
+    .sharing-active-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--cyan); animation: blink 1s ease-in-out infinite; }
+    .sharing-active-text { font-size: 11px; letter-spacing: 0.5px; color: var(--cyan); flex: 1; }
+    .btn-stop { background: rgba(232,32,42,0.2); color: var(--red); border: 1px solid rgba(232,32,42,0.3); font-size: 10px; padding: 4px 10px; cursor: pointer; border-radius: 4px; letter-spacing: 1px; font-family: var(--font-display); }
+    .btn-stop:hover { background: rgba(232,32,42,0.35); }
+
+    /* ── HEADLINES GRID ── */
+    .headlines-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 20px;
+    }
+    @media(max-width:768px){ .headlines-grid{ grid-template-columns:1fr; } }
+    .headline-featured {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-top: 3px solid var(--red);
+      border-radius: 10px;
+      padding: 24px;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    .headline-featured:hover { border-color: rgba(255,255,255,0.15); border-top-color: var(--red); }
+    .headline-tag {
+      font-family: var(--font-display);
+      font-size: 10px;
+      letter-spacing: 3px;
+      color: var(--red);
+      margin-bottom: 10px;
+    }
+    .headline-title {
+      font-family: var(--font-heading);
+      font-size: 22px;
+      font-weight: 700;
+      line-height: 1.3;
+      color: var(--white);
+      margin-bottom: 10px;
+    }
+    .headline-body {
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .headline-list { display: flex; flex-direction: column; gap: 12px; }
+    .headline-item {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .headline-item:hover { background: var(--card2); }
+    .headline-item-tag { font-family: var(--font-display); font-size: 9px; letter-spacing: 3px; color: var(--muted); margin-bottom: 6px; }
+    .headline-item-title { font-family: var(--font-heading); font-size: 15px; font-weight: 600; line-height: 1.3; color: var(--white); }
+
+    /* ── ALERTS STRIP ── */
+    #alerts-strip {
+      background: var(--card);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      padding: 0;
+      max-width: 100%;
+    }
+    .alerts-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 16px 24px;
+    }
+    .alerts-header {
+      font-family: var(--font-display);
+      font-size: 11px;
+      letter-spacing: 3px;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+    .alerts-chips {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .alert-chip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-family: var(--font-display);
+      font-size: 11px;
+      letter-spacing: 1px;
+      cursor: pointer;
+      border: 1px solid;
+      transition: all 0.15s;
+    }
+    .alert-chip.tornado { background: rgba(255,0,0,0.15); border-color: rgba(255,0,0,0.4); color: #ff4444; }
+    .alert-chip.severe { background: rgba(255,165,0,0.15); border-color: rgba(255,165,0,0.4); color: #ffaa33; }
+    .alert-chip.flash-flood { background: rgba(0,100,255,0.15); border-color: rgba(0,100,255,0.4); color: #5599ff; }
+    .alert-chip.special { background: rgba(0,212,245,0.1); border-color: rgba(0,212,245,0.3); color: var(--cyan); }
+    .alert-chip:hover { filter: brightness(1.2); transform: translateY(-1px); }
+    .chip-count {
+      background: rgba(255,255,255,0.15);
+      border-radius: 10px;
+      padding: 1px 6px;
+      font-size: 10px;
+    }
+
+    /* ── SUBMIT REPORT ── */
+    #submit-section {
+      background: linear-gradient(135deg, rgba(232,32,42,0.08) 0%, rgba(10,10,12,0) 60%), var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 40px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+      align-items: start;
+    }
+    @media(max-width:768px){ #submit-section{ grid-template-columns:1fr; } }
+    .submit-left h2 {
+      font-family: var(--font-display);
+      font-size: 36px;
+      letter-spacing: 2px;
+      line-height: 1;
+      margin-bottom: 12px;
+    }
+    .submit-left h2 span { color: var(--red); }
+    .submit-left p { font-size: 14px; color: var(--muted); margin-bottom: 20px; line-height: 1.6; }
+    .submit-form { display: flex; flex-direction: column; gap: 10px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    @media(max-width:500px){ .form-row{ grid-template-columns:1fr; } }
+    .form-input, .form-select, .form-textarea {
+      width: 100%;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 6px;
+      color: var(--white);
+      font-family: var(--font-body);
+      font-size: 14px;
+      padding: 10px 12px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: rgba(232,32,42,0.5); }
+    .form-input::placeholder, .form-textarea::placeholder { color: rgba(255,255,255,0.25); }
+    .form-select option { background: #1a1a1f; }
+    .form-textarea { resize: vertical; min-height: 90px; }
+    .form-label { font-family: var(--font-heading); font-size: 11px; letter-spacing: 1px; color: var(--muted); margin-bottom: 4px; display: block; }
+    #report-status { font-family: var(--font-heading); font-size: 12px; letter-spacing: 1px; margin-top: 6px; min-height: 18px; color: var(--cyan); }
+
+    /* ── TOOLS GRID ── */
+    .tools-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 16px;
+    }
+    .tool-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 22px;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, transform 0.15s;
+      text-decoration: none;
+      display: block;
+    }
+    .tool-card:hover { background: var(--card2); border-color: rgba(255,255,255,0.15); transform: translateY(-2px); }
+    .tool-icon {
+      width: 40px; height: 40px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+      margin-bottom: 12px;
+    }
+    .tool-icon.red { background: rgba(232,32,42,0.15); }
+    .tool-icon.cyan { background: rgba(0,212,245,0.12); }
+    .tool-icon.yellow { background: rgba(245,196,0,0.12); }
+    .tool-icon.orange { background: rgba(255,94,26,0.12); }
+    .tool-name { font-family: var(--font-heading); font-size: 16px; font-weight: 700; color: var(--white); margin-bottom: 4px; }
+    .tool-desc { font-size: 13px; color: var(--muted); line-height: 1.5; }
+    .tool-badge {
+      font-family: var(--font-display);
+      font-size: 9px;
+      letter-spacing: 2px;
+      padding: 2px 8px;
+      border-radius: 3px;
+      margin-top: 10px;
+      display: inline-block;
+    }
+    .tool-badge.live { background: rgba(232,32,42,0.2); color: var(--red); border: 1px solid rgba(232,32,42,0.3); }
+    .tool-badge.new { background: rgba(0,212,245,0.1); color: var(--cyan); border: 1px solid rgba(0,212,245,0.25); }
+
+    /* ── FOOTER ── */
+    footer {
+      background: var(--dark);
+      border-top: 1px solid var(--border);
+      padding: 40px 24px 28px;
+      max-width: 100%;
+    }
+    .footer-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      gap: 32px;
+      flex-wrap: wrap;
+      justify-content: space-between;
+    }
+    .footer-brand { max-width: 280px; }
+    .footer-logo {
+      font-family: var(--font-display);
+      font-size: 22px;
+      letter-spacing: 3px;
+      color: var(--white);
+      margin-bottom: 10px;
+    }
+    .footer-logo span { color: var(--cyan); }
+    .footer-tagline { font-size: 13px; color: var(--muted); line-height: 1.6; }
+    .footer-links { display: flex; flex-direction: column; gap: 6px; }
+    .footer-col-title { font-family: var(--font-display); font-size: 11px; letter-spacing: 3px; color: var(--muted); margin-bottom: 10px; }
+    .footer-link { color: rgba(255,255,255,0.5); text-decoration: none; font-size: 13px; transition: color 0.2s; }
+    .footer-link:hover { color: var(--white); }
+    .footer-bottom {
+      max-width: 1200px;
+      margin: 24px auto 0;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .footer-copy { font-size: 12px; color: rgba(255,255,255,0.25); letter-spacing: 0.3px; }
+    .footer-disclaimer { font-size: 11px; color: rgba(255,255,255,0.2); max-width: 500px; text-align: right; line-height: 1.4; }
+
+    /* ── MODAL ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px;
+      max-width: 520px;
+      width: 100%;
+      position: relative;
+    }
+    .modal-title { font-family: var(--font-display); font-size: 24px; letter-spacing: 2px; margin-bottom: 8px; }
+    .modal-sub { font-size: 13px; color: var(--muted); margin-bottom: 20px; line-height: 1.5; }
+    .modal-close { position: absolute; top: 16px; right: 16px; background: none; border: none; color: var(--muted); font-size: 20px; cursor: pointer; }
+    .modal-close:hover { color: var(--white); }
+
+    /* ── RESPONSIVE ── */
+    @media(max-width:768px){
+      nav { gap: 12px; padding: 0 16px; }
+      .nav-links { display: none; }
+      #share-location-panel { width: calc(100% - 32px); right: 16px; }
+      section { padding: 40px 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- BREAKING TICKER -->
+<div id="ticker">
+  <div id="ticker-inner">
+    <span class="ticker-label"><span class="ticker-dot"></span>BREAKING</span>
+    <span class="ticker-item">⚡ SEVERE THUNDERSTORM WATCH IN EFFECT FOR CENTRAL OKLAHOMA AND SOUTHERN KANSAS UNTIL 10 PM CDT</span>
+    <span class="ticker-divider">◆</span>
+    <span class="ticker-item">🌪 TORNADO WARNING — BARBER COUNTY KS — UNTIL 9:45 PM CDT</span>
+    <span class="ticker-divider">◆</span>
+    <span class="ticker-item">HAIL UP TO 2.5 INCHES POSSIBLE WITH SUPERCELLS TRACKING NE AT 55 MPH</span>
+    <span class="ticker-divider">◆</span>
+    <span class="ticker-item">⚡ SEVERE THUNDERSTORM WATCH IN EFFECT FOR CENTRAL OKLAHOMA AND SOUTHERN KANSAS UNTIL 10 PM CDT</span>
+    <span class="ticker-divider">◆</span>
+    <span class="ticker-item">🌪 TORNADO WARNING — BARBER COUNTY KS — UNTIL 9:45 PM CDT</span>
+    <span class="ticker-divider">◆</span>
+    <span class="ticker-item">HAIL UP TO 2.5 INCHES POSSIBLE WITH SUPERCELLS TRACKING NE AT 55 MPH</span>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-logo" href="#">
+    <div class="nav-logo-icon">⚡</div>
+    STORM<span>VEC</span>TOR
+  </a>
+  <div class="nav-links">
+    <a class="nav-link active" href="#">Home</a>
+    <a class="nav-link" href="#radar-section">Live Radar</a>
+    <a class="nav-link" href="#headlines-section">Headlines</a>
+    <a class="nav-link" href="#submit-report-section">Submit Report</a>
+    <a class="nav-link" href="#tools-section">Tools</a>
+  </div>
+  <div class="nav-actions">
+    <div class="live-pill"><div class="live-dot"></div> LIVE</div>
+    <a class="btn btn-red" href="https://www.youtube.com/@maxvelocitywx" target="_blank">▶ Watch Live</a>
+    <a class="btn btn-outline" href="#share-spotter">📍 Share Location</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div id="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-grid"></div>
+  <div class="hero-eyebrow">REAL-TIME SEVERE WEATHER INTELLIGENCE</div>
+  <h1>STORM<br><span class="accent">VEC</span><span class="accent2">TOR</span></h1>
+  <p class="hero-sub">Live radar. Storm-chaser feeds. NWS alerts the moment they drop. No hype — just the data that matters when it matters most.</p>
+  <div class="hero-ctas">
+    <a class="btn btn-red" href="#radar-section" style="font-size:14px;padding:11px 22px;">📡 Interactive Live Radar</a>
+    <a class="btn btn-cyan" href="https://www.youtube.com/@maxvelocitywx" target="_blank" style="font-size:14px;padding:11px 22px;">▶ Watch on YouTube</a>
+    <a class="btn btn-outline" href="#submit-report-section" style="font-size:14px;padding:11px 22px;">📷 Submit Storm Report</a>
+  </div>
+  <div class="hero-stats">
+    <div class="hero-stat">
+      <div class="hero-stat-num red" id="stat-warnings">—</div>
+      <div class="hero-stat-label">ACTIVE WARNINGS</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-num" id="stat-watches">—</div>
+      <div class="hero-stat-label">ACTIVE WATCHES</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-num cyan" id="stat-spotters">0</div>
+      <div class="hero-stat-label">LIVE SPOTTERS</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-num" id="stat-reports">—</div>
+      <div class="hero-stat-label">STORM REPORTS TODAY</div>
+    </div>
+  </div>
+</div>
+
+<!-- SITUATION REPORT BAR -->
+<div id="situation">
+  <div class="situation-inner">
+    <div class="sit-main">
+      <div class="sit-badge"><span style="width:7px;height:7px;border-radius:50%;background:var(--red);display:inline-block;animation:blink 1s infinite;"></span> SITUATION REPORT</div>
+      <div class="sit-headline" id="sit-headline">Loading current situation...</div>
+    </div>
+    <div class="sit-cards">
+      <div class="sit-card">
+        <div class="sit-card-label">SPC OUTLOOK</div>
+        <div class="sit-card-val yellow" id="sit-risk">—</div>
+        <div class="sit-card-sub">Day 1 Severe Risk</div>
+      </div>
+      <div class="sit-card red">
+        <div class="sit-card-label">ACTIVE WARNINGS</div>
+        <div class="sit-card-val red" id="sit-warnings">—</div>
+        <div class="sit-card-sub">NWS Active Now</div>
+      </div>
+      <div class="sit-card">
+        <div class="sit-card-label">STORM MOTION</div>
+        <div class="sit-card-val" id="sit-motion">NE 55 MPH</div>
+        <div class="sit-card-sub">Primary Cell Track</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ACTIVE ALERTS STRIP -->
+<div id="alerts-strip">
+  <div class="alerts-inner">
+    <div class="alerts-header">● ACTIVE NWS ALERTS — LOADING...</div>
+    <div class="alerts-chips" id="alerts-chips">
+      <div class="alert-chip tornado">🌪 TORNADO WARNING <span class="chip-count">3</span></div>
+      <div class="alert-chip severe">⚡ SEVERE T-STORM WARNING <span class="chip-count">12</span></div>
+      <div class="alert-chip flash-flood">💧 FLASH FLOOD WARNING <span class="chip-count">7</span></div>
+      <div class="alert-chip special">📢 SPECIAL WEATHER STATEMENT <span class="chip-count">5</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- LIVE RADAR -->
+<div id="radar-section">
+  <div class="radar-wrapper">
+    <div class="radar-overlay-bar">
+      <div>
+        <div class="radar-title">LIVE RADAR</div>
+        <div class="radar-sub">NWS composite · updated every 2 min</div>
+      </div>
+      <div class="live-pill" style="margin-left:16px;"><div class="live-dot"></div> LIVE</div>
+    </div>
+
+    <iframe id="radar-frame" src="radar.html" title="Live Radar"></iframe>
+
+    <!-- SHARE YOUR LOCATION PANEL -->
+    <div id="share-location-panel" style="pointer-events:all;">
+      <h3>📍 SHARE YOUR LOCATION</h3>
+      <p>Pin yourself on the radar as a live storm spotter. Your location transmits to our radar in real-time.</p>
+
+      <div id="share-form">
+        <input class="share-input" id="spotter-name" type="text" placeholder="Your name / callsign" maxlength="24">
+        <input class="share-input" id="spotter-note" type="text" placeholder="Note (e.g. 'hail 1.5in NE of town')" maxlength="80">
+        <div class="share-row">
+          <input class="share-checkbox" type="checkbox" id="spotter-priority">
+          <label class="share-checkbox-label" for="spotter-priority">Priority report (hail / tornado confirmed)</label>
+        </div>
+        <button class="btn btn-cyan" style="width:100%;justify-content:center;" onclick="startSharing()">📡 Start Sharing Location</button>
+        <div id="share-status"></div>
+      </div>
+
+      <div class="sharing-active" id="sharing-active" style="display:none;">
+        <div class="sharing-active-dot"></div>
+        <div class="sharing-active-text">Transmitting to radar...</div>
+        <button class="btn-stop" onclick="stopSharing()">STOP</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- HEADLINES SECTION -->
+<section id="headlines-section">
+  <div class="section-header">
+    <span class="section-eyebrow">LATEST</span>
+    <h2 class="section-title">CURRENT <span class="accent">HEADLINES</span></h2>
+  </div>
+  <div class="headlines-grid">
+    <div class="headline-featured">
+      <div class="headline-tag">● BREAKING — SEVERE WEATHER</div>
+      <div class="headline-title">Severe Weather Outbreak Expected Across Central Plains Wednesday — Tornado Threat Elevated</div>
+      <div class="headline-body">The Storm Prediction Center has issued a Moderate Risk for severe thunderstorms across a large portion of the central Plains Wednesday afternoon and evening. An intense mid-level jet and strong surface low will create conditions favorable for supercell thunderstorms capable of significant tornadoes, damaging winds to 80 mph, and hail up to 2.5 inches in diameter. Residents in the risk area should have multiple ways to receive warnings.</div>
+    </div>
+    <div class="headline-list">
+      <div class="headline-item">
+        <div class="headline-item-tag">⚡ WATCH ISSUED</div>
+        <div class="headline-item-title">Tornado Watch Issued for 14 Counties in Southwest Kansas Until Midnight CDT</div>
+      </div>
+      <div class="headline-item">
+        <div class="headline-item-tag">💧 FLASH FLOOD</div>
+        <div class="headline-item-title">Flash Flood Emergency in Effect for Western Oklahoma — 6 Inches Fell in 3 Hours</div>
+      </div>
+      <div class="headline-item">
+        <div class="headline-item-tag">📊 ANALYSIS</div>
+        <div class="headline-item-title">Why Thursday's Setup Could Be Historic: SPC Places 30% Tornado Hatching Area</div>
+      </div>
+      <div class="headline-item">
+        <div class="headline-item-tag">🌡 FORECAST</div>
+        <div class="headline-item-title">Next 7 Days: Another Significant Severe Weather Pattern Develops Late Week</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SUBMIT REPORT SECTION -->
+<section id="submit-report-section" style="padding-top:0;">
+  <div id="submit-section">
+    <div class="submit-left">
+      <h2>SUBMIT YOUR <span>STORM</span> REPORT</h2>
+      <p>You're our eyes on the ground. Share what you're seeing — hail size, wind damage, flooding, funnel clouds — and your report goes directly to our operations team and radar display.</p>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);">✅ Reports reviewed in real-time by our team</div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);">✅ Verified reports may appear on live broadcast</div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);">✅ All reports forwarded to local NWS office</div>
+      </div>
+    </div>
+    <div class="submit-right">
+      <form class="submit-form" onsubmit="submitReport(event)">
+        <div class="form-row">
+          <div>
+            <label class="form-label">Your Name</label>
+            <input class="form-input" type="text" placeholder="Optional" id="rep-name">
+          </div>
+          <div>
+            <label class="form-label">Phone / Email</label>
+            <input class="form-input" type="text" placeholder="For follow-up" id="rep-contact">
+          </div>
+        </div>
+        <div class="form-row">
+          <div>
+            <label class="form-label">City / Location *</label>
+            <input class="form-input" type="text" placeholder="e.g. 3mi NE of Pratt, KS" id="rep-location" required>
+          </div>
+          <div>
+            <label class="form-label">Report Type *</label>
+            <select class="form-select" id="rep-type" required>
+              <option value="">Select type...</option>
+              <option>Tornado Confirmed</option>
+              <option>Funnel Cloud</option>
+              <option>Large Hail</option>
+              <option>Wind Damage</option>
+              <option>Flash Flooding</option>
+              <option>Lightning Strike</option>
+              <option>Power Outage</option>
+              <option>Other</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="form-label">Hail Size (if applicable)</label>
+          <input class="form-input" type="text" placeholder="e.g. Quarter (1.0 in), Golf ball (1.75 in)" id="rep-hail">
+        </div>
+        <div>
+          <label class="form-label">Description *</label>
+          <textarea class="form-textarea" placeholder="Describe what you observed — include time, direction of movement, estimated intensity..." id="rep-desc" required></textarea>
+        </div>
+        <button class="btn btn-red" type="submit" style="font-size:13px;padding:11px 20px;justify-content:center;">📤 Submit Report</button>
+        <div id="report-status"></div>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- TOOLS SECTION -->
+<section id="tools-section">
+  <div class="section-header">
+    <span class="section-eyebrow">RESOURCES</span>
+    <h2 class="section-title">WEATHER <span class="accent">TOOLS</span></h2>
+  </div>
+  <div class="tools-grid">
+    <a class="tool-card" href="#radar-section">
+      <div class="tool-icon cyan">📡</div>
+      <div class="tool-name">Interactive Live Radar</div>
+      <div class="tool-desc">Full-featured radar with NWS alerts, storm cell tracking, and Cooper Watch overlay.</div>
+      <span class="tool-badge live">LIVE</span>
+    </a>
+    <a class="tool-card" href="#" onclick="openSpotterModal(); return false;">
+      <div class="tool-icon red">📍</div>
+      <div class="tool-name">Storm Spotter Pin</div>
+      <div class="tool-desc">Share your GPS location and transmit directly to our live radar as a visible spotter marker.</div>
+      <span class="tool-badge new">NEW</span>
+    </a>
+    <a class="tool-card" href="https://www.spc.noaa.gov/products/outlook/" target="_blank">
+      <div class="tool-icon yellow">🗺</div>
+      <div class="tool-name">SPC Severe Outlook</div>
+      <div class="tool-desc">Storm Prediction Center Day 1–3 severe weather outlooks and probability maps.</div>
+    </a>
+    <a class="tool-card" href="https://alerts.weather.gov/" target="_blank">
+      <div class="tool-icon orange">⚠️</div>
+      <div class="tool-name">NWS Active Alerts</div>
+      <div class="tool-desc">All current National Weather Service warnings, watches, and advisories by state.</div>
+    </a>
+    <a class="tool-card" href="https://www.wunderground.com/history" target="_blank">
+      <div class="tool-icon cyan">📈</div>
+      <div class="tool-name">Historical Data</div>
+      <div class="tool-desc">Look up past storm records, historical obs, and climatology for any location.</div>
+    </a>
+    <a class="tool-card" href="https://www.nhc.noaa.gov/" target="_blank">
+      <div class="tool-icon red">🌀</div>
+      <div class="tool-name">Tropical Tracker</div>
+      <div class="tool-desc">National Hurricane Center forecasts, spaghetti models, and active tropical alerts.</div>
+    </a>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <div class="footer-logo">STORM<span>VECTOR</span></div>
+      <div class="footer-tagline">Real-time severe weather tracking, live storm coverage, and in-depth forecasts. No hype, just the data that matters.</div>
+    </div>
+    <div>
+      <div class="footer-col-title">NAVIGATE</div>
+      <div class="footer-links">
+        <a class="footer-link" href="#">Home</a>
+        <a class="footer-link" href="#radar-section">Live Radar</a>
+        <a class="footer-link" href="#headlines-section">Headlines</a>
+        <a class="footer-link" href="#submit-report-section">Submit Report</a>
+      </div>
+    </div>
+    <div>
+      <div class="footer-col-title">RESOURCES</div>
+      <div class="footer-links">
+        <a class="footer-link" href="https://www.spc.noaa.gov/" target="_blank">Storm Prediction Center</a>
+        <a class="footer-link" href="https://www.weather.gov/" target="_blank">National Weather Service</a>
+        <a class="footer-link" href="https://www.nhc.noaa.gov/" target="_blank">Hurricane Center</a>
+      </div>
+    </div>
+    <div>
+      <div class="footer-col-title">CONNECT</div>
+      <div class="footer-links">
+        <a class="footer-link" href="https://www.youtube.com/@maxvelocitywx" target="_blank">YouTube — Live Stream</a>
+        <a class="footer-link" href="#">Discord Community</a>
+        <a class="footer-link" href="#submit-report-section">Submit a Report</a>
+      </div>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <div class="footer-copy">© 2025 StormVector. Built for storm spotters.</div>
+    <div class="footer-disclaimer">Weather data provided for informational purposes only. Always follow instructions from your local National Weather Service office and emergency management officials.</div>
+  </div>
+</footer>
+
+<!-- SPOTTER MODAL -->
+<div class="modal-overlay" id="spotter-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeSpotterModal()">✕</button>
+    <div class="modal-title">📍 SPOTTER LOCATION</div>
+    <div class="modal-sub">Share your GPS location to appear as a live marker on the radar. Your location updates every 30 seconds and auto-expires after 10 minutes of inactivity.</div>
+    <input class="form-input" id="modal-spotter-name" type="text" placeholder="Your name / callsign" maxlength="24" style="margin-bottom:8px;">
+    <input class="form-input" id="modal-spotter-note" type="text" placeholder="Note (e.g. 'hail 1.5in, moving NE')" maxlength="80" style="margin-bottom:8px;">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+      <input type="checkbox" id="modal-priority" style="accent-color:var(--red);width:14px;height:14px;">
+      <label for="modal-priority" style="font-size:12px;color:var(--muted);">Priority report (confirmed severe)</label>
+    </div>
+    <button class="btn btn-cyan" style="width:100%;justify-content:center;" onclick="startSharingFromModal()">Start Transmitting</button>
+    <div id="modal-status" style="font-size:12px;margin-top:8px;min-height:16px;color:var(--cyan);font-family:var(--font-heading);letter-spacing:0.5px;"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// LIVE NWS ALERTS — fetch and update chips + stats
+// ═══════════════════════════════════════════════════════
+async function loadNWSAlerts() {
+  try {
+    const res = await fetch('https://api.weather.gov/alerts/active?status=actual&message_type=alert&urgency=Immediate,Expected');
+    if (!res.ok) throw new Error('NWS API error');
+    const data = await res.json();
+    const alerts = data.features || [];
+
+    const counts = { tornado: 0, severe: 0, flood: 0, special: 0, watch: 0 };
+    alerts.forEach(a => {
+      const ev = (a.properties.event || '').toLowerCase();
+      if (ev.includes('tornado warning')) counts.tornado++;
+      else if (ev.includes('severe thunderstorm warning')) counts.severe++;
+      else if (ev.includes('flash flood')) counts.flood++;
+      else if (ev.includes('watch')) counts.watch++;
+      else counts.special++;
+    });
+
+    document.getElementById('stat-warnings').textContent = counts.tornado + counts.severe + counts.flood;
+    document.getElementById('stat-watches').textContent = counts.watch;
+    document.getElementById('sit-warnings').textContent = counts.tornado + counts.severe + counts.flood;
+
+    const alertsHeader = document.querySelector('#alerts-strip .alerts-header');
+    alertsHeader.textContent = `● ACTIVE NWS ALERTS — ${alerts.length} TOTAL`;
+
+    const chips = document.getElementById('alerts-chips');
+    chips.innerHTML = '';
+    if (counts.tornado > 0) chips.innerHTML += `<div class="alert-chip tornado">🌪 TORNADO WARNING <span class="chip-count">${counts.tornado}</span></div>`;
+    if (counts.severe > 0) chips.innerHTML += `<div class="alert-chip severe">⚡ SEVERE T-STORM WARNING <span class="chip-count">${counts.severe}</span></div>`;
+    if (counts.flood > 0) chips.innerHTML += `<div class="alert-chip flash-flood">💧 FLASH FLOOD WARNING <span class="chip-count">${counts.flood}</span></div>`;
+    if (counts.watch > 0) chips.innerHTML += `<div class="alert-chip special">👁 WATCH IN EFFECT <span class="chip-count">${counts.watch}</span></div>`;
+    if (counts.special > 0) chips.innerHTML += `<div class="alert-chip special">📢 OTHER STATEMENTS <span class="chip-count">${counts.special}</span></div>`;
+    if (chips.innerHTML === '') chips.innerHTML = '<div style="font-family:var(--font-heading);font-size:12px;color:var(--muted);letter-spacing:1px;">No active alerts at this time.</div>';
+
+    // Update sit report
+    const firstTornado = alerts.find(a => a.properties.event.toLowerCase().includes('tornado'));
+    const firstSevere = alerts.find(a => a.properties.event.toLowerCase().includes('severe'));
+    const featured = firstTornado || firstSevere || alerts[0];
+    if (featured) {
+      document.getElementById('sit-headline').textContent = featured.properties.headline || featured.properties.event;
+    } else {
+      document.getElementById('sit-headline').textContent = 'No active severe weather alerts at this time.';
+    }
+    document.getElementById('stat-reports').textContent = Math.floor(Math.random() * 80 + 40); // simulated
+    document.getElementById('sit-risk').textContent = counts.tornado > 5 ? 'MODERATE' : counts.tornado > 0 ? 'SLIGHT' : 'MARGINAL';
+  } catch(e) {
+    document.getElementById('sit-headline').textContent = 'Unable to load live alerts. Check NWS directly at weather.gov.';
+  }
+}
+
+loadNWSAlerts();
+setInterval(loadNWSAlerts, 2 * 60 * 1000); // Refresh every 2 min
+
+// ═══════════════════════════════════════════════════════
+// STORM SPOTTER — location sharing engine
+// ═══════════════════════════════════════════════════════
+const CHANNEL_KEY = 'stormspotter_locations';
+let sharingInterval = null;
+let mySpotterId = null;
+let spotterCount = 0;
+let radarIframeReady = false;
+let pendingTransmits = []; // queue messages until iframe is ready
+
+function generateId() {
+  return 'spotter_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+}
+
+// Wait for radar iframe to be ready, then flush queue
+function getRadarIframe() {
+  return document.getElementById('radar-frame');
+}
+
+function postToRadar(msg) {
+  const iframe = getRadarIframe();
+  if (!iframe || !iframe.contentWindow) return;
+  try { iframe.contentWindow.postMessage(msg, '*'); } catch(e) {}
+}
+
+// When iframe loads, ping it; on pong we know it's ready
+document.addEventListener('DOMContentLoaded', function() {
+  const iframe = getRadarIframe();
+  if (!iframe) return;
+  iframe.addEventListener('load', function() {
+    // Give scripts inside a moment to register their listeners
+    setTimeout(function() {
+      radarIframeReady = true;
+      // Flush anything queued before iframe was ready
+      pendingTransmits.forEach(function(msg) { postToRadar(msg); });
+      pendingTransmits = [];
+    }, 800);
+  });
+});
+
+// Also listen for pong (belt-and-suspenders)
+window.addEventListener('message', function(e) {
+  if (e.data && e.data.type === 'spotter_pong') {
+    radarIframeReady = true;
+    pendingTransmits.forEach(function(msg) { postToRadar(msg); });
+    pendingTransmits = [];
+  }
+  if (e.data && e.data.type === 'spotter_count') {
+    spotterCount = e.data.count;
+    document.getElementById('stat-spotters').textContent = spotterCount;
+  }
+});
+
+function sendToRadar(data) {
+  const msg = { type: 'spotter_location', payload: data };
+  if (radarIframeReady) {
+    postToRadar(msg);
+  } else {
+    // Queue it and also try pinging the iframe to trigger readiness
+    pendingTransmits.push(msg);
+    postToRadar({ type: 'spotter_ping' });
+  }
+}
+
+function removeFromRadar(id) {
+  postToRadar({ type: 'spotter_remove', id: id });
+}
+
+function startSharing() {
+  const name = document.getElementById('spotter-name').value.trim() || 'Anonymous Spotter';
+  const note = document.getElementById('spotter-note').value.trim();
+  const priority = document.getElementById('spotter-priority').checked;
+  _doStartSharing(name, note, priority, 'share-status', 'sharing-active', 'share-form');
+}
+
+function startSharingFromModal() {
+  const name = document.getElementById('modal-spotter-name').value.trim() || 'Anonymous Spotter';
+  const note = document.getElementById('modal-spotter-note').value.trim();
+  const priority = document.getElementById('modal-priority').checked;
+  _doStartSharing(name, note, priority, 'modal-status', null, null);
+  setTimeout(() => closeSpotterModal(), 2000);
+}
+
+function _doStartSharing(name, note, priority, statusId, activeId, formId) {
+  const statusEl = document.getElementById(statusId);
+  if (!navigator.geolocation) {
+    statusEl.textContent = '⚠ Geolocation not supported by this browser.';
+    statusEl.className = 'error';
+    return;
+  }
+
+  statusEl.textContent = '🔍 Getting your location...';
+  statusEl.className = '';
+
+  navigator.geolocation.getCurrentPosition(
+    function(pos) {
+      mySpotterId = generateId();
+
+      const transmit = () => {
+        navigator.geolocation.getCurrentPosition(function(p) {
+          const data = {
+            id: mySpotterId,
+            name: name,
+            note: note,
+            priority: priority,
+            lat: p.coords.latitude,
+            lng: p.coords.longitude,
+            timestamp: Date.now()
+          };
+          sendToRadar(data);
+          spotterCount = Math.max(1, spotterCount);
+          const statEl = document.getElementById('stat-spotters');
+          if (statEl) statEl.textContent = spotterCount;
+        }, function() {}, { enableHighAccuracy: true, timeout: 8000, maximumAge: 5000 });
+      };
+
+      // First transmit uses already-fetched position for instant response
+      const firstData = {
+        id: mySpotterId,
+        name: name,
+        note: note,
+        priority: priority,
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        timestamp: Date.now()
+      };
+      sendToRadar(firstData);
+      spotterCount = Math.max(1, spotterCount);
+      const statEl = document.getElementById('stat-spotters');
+      if (statEl) statEl.textContent = spotterCount;
+
+      // Then keep updating every 30s
+      sharingInterval = setInterval(transmit, 30000);
+
+      statusEl.textContent = '✅ Location transmitted to radar!';
+      statusEl.className = 'success';
+
+      if (activeId) document.getElementById(activeId).style.display = 'flex';
+      if (formId) {
+        const f = document.getElementById(formId);
+        f.querySelectorAll('input, button').forEach(function(el) { el.disabled = true; });
+      }
+
+      // Scroll to radar
+      setTimeout(function() {
+        document.getElementById('radar-section').scrollIntoView({ behavior: 'smooth' });
+      }, 800);
+    },
+    function(err) {
+      let msg = '⚠ Location access denied.';
+      if (err.code === 1) msg = '⚠ Location permission denied. Please allow location access in your browser.';
+      else if (err.code === 2) msg = '⚠ Location unavailable. Check your device settings.';
+      else if (err.code === 3) msg = '⚠ Location request timed out. Try again.';
+      statusEl.textContent = msg;
+      statusEl.className = 'error';
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+  );
+}
+
+function stopSharing() {
+  if (sharingInterval) { clearInterval(sharingInterval); sharingInterval = null; }
+  if (mySpotterId) { removeFromRadar(mySpotterId); mySpotterId = null; }
+  document.getElementById('sharing-active').style.display = 'none';
+  const form = document.getElementById('share-form');
+  form.querySelectorAll('input, button').forEach(el => el.disabled = false);
+  document.getElementById('share-status').textContent = 'Location sharing stopped.';
+  document.getElementById('share-status').className = '';
+  spotterCount = Math.max(0, spotterCount - 1);
+  document.getElementById('stat-spotters').textContent = spotterCount;
+}
+
+// Handle postMessage back from radar iframe
+window.addEventListener('message', function(e) {
+  if (e.data && e.data.type === 'spotter_count') {
+    spotterCount = e.data.count;
+    document.getElementById('stat-spotters').textContent = spotterCount;
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+// REPORT SUBMIT
+// ═══════════════════════════════════════════════════════
+function submitReport(e) {
+  e.preventDefault();
+  const status = document.getElementById('report-status');
+  const type = document.getElementById('rep-type').value;
+  const loc = document.getElementById('rep-location').value;
+  const desc = document.getElementById('rep-desc').value;
+
+  if (!type || !loc || !desc) {
+    status.textContent = '⚠ Please fill in all required fields.';
+    status.style.color = 'var(--red)';
+    return;
+  }
+
+  status.textContent = '⏳ Submitting report...';
+  status.style.color = 'var(--cyan)';
+
+  // Simulate submission (replace with real API call)
+  setTimeout(() => {
+    status.textContent = '✅ Report received! Thank you for helping keep the community safe.';
+    status.style.color = '#44ff99';
+    document.getElementById('rep-desc').value = '';
+    document.getElementById('rep-hail').value = '';
+    document.getElementById('rep-location').value = '';
+    document.getElementById('rep-type').value = '';
+  }, 1200);
+}
+
+// ═══════════════════════════════════════════════════════
+// MODALS
+// ═══════════════════════════════════════════════════════
+function openSpotterModal() { document.getElementById('spotter-modal').classList.add('open'); }
+function closeSpotterModal() { document.getElementById('spotter-modal').classList.remove('open'); }
+document.getElementById('spotter-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeSpotterModal();
+});
+
+// "Share Location" nav button → scroll to panel inside radar
+document.querySelector('a[href="#share-spotter"]').addEventListener('click', function(e) {
+  e.preventDefault();
+  document.getElementById('radar-section').scrollIntoView({ behavior: 'smooth' });
+  setTimeout(() => document.getElementById('share-location-panel').style.animation = 'none', 800);
+});
+
+// ═══════════════════════════════════════════════════════
+// SMOOTH NAV
+// ═══════════════════════════════════════════════════════
+document.querySelectorAll('a[href^="#"]').forEach(a => {
+  if (a.getAttribute('href') === '#share-spotter') return;
+  a.addEventListener('click', function(e) {
+    const target = document.querySelector(this.getAttribute('href'));
+    if (target) { e.preventDefault(); target.scrollIntoView({ behavior: 'smooth' }); }
+  });
+});
+
+// Highlight active nav
+const sections = document.querySelectorAll('section[id], div[id]');
+const navLinks = document.querySelectorAll('.nav-link');
+window.addEventListener('scroll', () => {
+  let current = '';
+  sections.forEach(s => { if (window.scrollY >= s.offsetTop - 80) current = s.id; });
+  navLinks.forEach(l => {
+    l.classList.remove('active');
+    if (l.getAttribute('href') === '#' + current) l.classList.add('active');
+  });
+}, { passive: true });
+</script>
+</body>
+</html>
